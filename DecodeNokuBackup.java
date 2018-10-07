@@ -179,8 +179,6 @@ public class DecodeNokuBackup {
                             }
 
 
-                            // Creo lo stealth space
-
                             numStealthSpaces++;
 
 
