@@ -51,7 +51,7 @@ public class DecodeNokuBackup {
             try (FileOutputStream out2 = new FileOutputStream(currentProgramPath + File.separator + "backup.noku_dec")) {
                 processFile(ci2, in, out2);
             }
-            
+
 
             File backup = new File(currentProgramPath + File.separator + "backup.noku_dec");
 
@@ -269,10 +269,6 @@ public class DecodeNokuBackup {
             }
 
 
-            if (new File(currentProgramPath + File.separator + "backup.noku_dec").exists())
-                new File(currentProgramPath + File.separator + "backup.noku_dec").delete();
-
-
         } catch (Exception e) {
             System.out.println("Wrong password or wrong file");
             success = false;
@@ -313,7 +309,342 @@ public class DecodeNokuBackup {
             for (int i = 0; i < viewWalletsStealth.size(); i++) {
                 System.out.println(viewWalletsStealth.get(i));
             }
+
+            System.out.print("\n\n");
+
+            int i = 0;
+
+            for (; i < storedWallets.size(); i++) {
+                System.out.println(i + " - " + storedWallets.get(i));
+            }
+
+            for (int j = 0; j < storedWalletsStealth.size(); j++) {
+                System.out.println(i + " - " + storedWalletsStealth.get(j));
+            }
+
+            while (true) {
+
+                System.out.println("\nDo you want to export any wallet? Press the corresponding number or press x + enter to exit...");
+
+                String answer = br.readLine();
+
+                if (!answer.equals("x") && !answer.equals("X")) {
+
+                    String choosenAddress = "";
+                    boolean isStealth = false;
+
+                    if (Integer.parseInt(answer) < storedWallets.size()) {
+                        choosenAddress = storedWallets.get(Integer.parseInt(answer));
+                    } else {
+                        // stealths
+                        choosenAddress = storedWalletsStealth.get(Integer.parseInt(answer) - storedWallets.size());
+                        isStealth = true;
+
+
+                    }
+
+                    if (!isStealth) {
+
+                        System.out.println("Enter the wallet password: ");
+
+                    } else {
+
+                        System.out.println("Enter the stealth space password: ");
+
+                    }
+
+                    String pass = br.readLine();
+
+
+                    File backup = new File(currentProgramPath + File.separator + "backup.noku_dec");
+
+
+                    try (
+                            InputStream inputStream = new BufferedInputStream(new FileInputStream(backup));
+
+                    ) {
+
+                        byte[] buffer = new byte[(int) backup.length()];
+                        inputStream.read(buffer);
+                        int numWallets;
+                        String tmp = "";
+                        i = 0;
+
+                        while (buffer[i] != '_') {
+                            tmp += (char) (buffer[i] & 0xFF);
+                            i++;
+                        }
+
+                        numWallets = Integer.parseInt(tmp);
+
+                        if (numWallets != 0) {
+
+                            int[] lengths = new int[numWallets];
+                            int c = 0;
+                            i++;
+
+                            while (buffer[i] != 'W' && buffer[i] != '<') {
+                                String tmpLength = "";
+                                while (buffer[i] != '_') {
+                                    tmpLength += (char) (buffer[i] & 0xFF);
+                                    i++;
+                                }
+                                lengths[c++] = Integer.parseInt(tmpLength);
+                                i++;
+                            }
+
+                            for (int j = 0; j < numWallets; j++) {
+                                while (i < buffer.length && buffer[i] != '0' && buffer[i] != '<') {
+                                    i++;
+                                }
+
+                                if (i < buffer.length) {
+                                    if (buffer[i] == '0') {
+                                        String address = "";
+                                        while (buffer[i] != '\t') {
+                                            address += (char) (buffer[i] & 0xFF);
+                                            i++;
+                                        }
+
+                                        int k;
+
+                                        if (address.equals(choosenAddress)) {
+
+                                            String encryptedPath = currentProgramPath + File.separator + address;
+
+                                            FileOutputStream output = new FileOutputStream(encryptedPath, false);
+
+                                            i++;
+                                            k = 0;
+                                            while (k < lengths[j]) {
+                                                output.write(buffer[i + k]);
+                                                k++;
+                                            }
+
+                                            output.flush();
+                                            output.close();
+
+                                            FileInputStream in = new FileInputStream(new File(encryptedPath));
+                                            byte[] salt2 = new byte[8], iv2 = new byte[128 / 8];
+                                            in.read(salt2);
+                                            in.read(iv2);
+                                            SecretKeyFactory factory2 =
+                                                    SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+                                            KeySpec spec2 = new PBEKeySpec(pass.toCharArray(), salt2, 10000, 128);
+                                            SecretKey tmp2 = factory2.generateSecret(spec2);
+                                            SecretKeySpec skey2 = new SecretKeySpec(tmp2.getEncoded(), "AES");
+
+                                            Cipher ci2 = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                                            ci2.init(Cipher.DECRYPT_MODE, skey2, new IvParameterSpec(iv2));
+
+                                            try (FileOutputStream out2 = new FileOutputStream(new File(currentProgramPath + File.separator + address + "_json"))) {
+                                                processFile(ci2, in, out2);
+                                            }
+
+                                            if (new File(encryptedPath).exists()) {
+                                                new File(encryptedPath).delete();
+                                            }
+
+                                            System.out.println("Wallet exported");
+
+
+                                        } else {
+                                            i++;
+                                            k = 0;
+                                            while (k < lengths[j]) {
+                                                k++;
+                                            }
+
+                                        }
+
+
+                                        i = i + k;
+
+                                    } else if (buffer[i] == '<') {
+                                        while (buffer[i] != '0') {
+                                            i++;
+                                        }
+
+                                        String address = "";
+                                        while (buffer[i] != '\t') {
+                                            address += (char) (buffer[i] & 0xFF);
+                                            i++;
+                                        }
+
+
+                                    }
+                                }
+                            }
+
+                            if (buffer[i] == '\t')
+                                i++;
+
+                            char charTmp = (char) (buffer[i] & 0xFF);
+                            int numOfStealthSpaces = Character.getNumericValue(charTmp);
+                            i += 2;
+                            c = 0;
+                            if (numOfStealthSpaces != 0) {
+                                int[] stealthSpacesHowManyWallets = new int[numOfStealthSpaces];
+                                while (buffer[i] != 'S' && c < numOfStealthSpaces) {
+                                    String tmpLength = "";
+                                    while (buffer[i] != '_') {
+                                        tmpLength += (char) (buffer[i] & 0xFF);
+                                        i++;
+                                    }
+
+                                    stealthSpacesHowManyWallets[c++] = Integer.parseInt(tmpLength);
+                                    i++;
+                                }
+
+
+                                for (int z = 0; z < numOfStealthSpaces; z++) {
+
+                                    i += 10;
+
+                                    boolean shouldAddStealthSpace = true;
+
+                                    String id = "";
+                                    while (buffer[i] != ' ') {
+                                        id += (char) (buffer[i] & 0xFF);
+                                        i++;
+                                    }
+
+                                    i++;
+
+                                    String hashPass = "";
+
+                                    while (buffer[i] != '_') {
+                                        hashPass += (char) (buffer[i] & 0xFF);
+                                        i++;
+                                    }
+
+
+                                    i++;
+
+                                    int[] lengthsSt = new int[stealthSpacesHowManyWallets[z]];
+                                    int cont = 0;
+
+                                    while (cont < stealthSpacesHowManyWallets[z] && buffer[i] != 'W' && buffer[i] != '<') {  //&& buffer[i] != '<'
+                                        String tmpLength = "";
+                                        while (buffer[i] != '_') {
+                                            tmpLength += (char) (buffer[i] & 0xFF);
+                                            i++;
+                                        }
+                                        lengthsSt[cont++] = Integer.parseInt(tmpLength);
+                                        i++;
+                                    }
+
+
+                                    for (int h = 0; h < stealthSpacesHowManyWallets[z]; h++) {
+
+
+                                        while (i < buffer.length && buffer[i] != '0' && buffer[i] != '<') {
+                                            i++;
+                                        }
+
+                                        if (buffer[i] == '0') {
+                                            String address = "";
+                                            while (buffer[i] != '\t') {
+                                                address += (char) (buffer[i] & 0xFF);
+                                                i++;
+                                            }
+
+
+                                            int k;
+
+                                            if (address.equals(choosenAddress)) {
+                                                String encryptedPath = currentProgramPath + File.separator + address;
+
+                                                FileOutputStream output = new FileOutputStream(encryptedPath, false);
+
+                                                i++;
+                                                k = 0;
+                                                while (k < lengths[h]) {
+                                                    output.write(buffer[i + k]);
+                                                    k++;
+                                                }
+
+                                                output.flush();
+                                                output.close();
+
+                                                FileInputStream in = new FileInputStream(new File(encryptedPath));
+                                                byte[] salt2 = new byte[8], iv2 = new byte[128 / 8];
+                                                in.read(salt2);
+                                                in.read(iv2);
+                                                SecretKeyFactory factory2 =
+                                                        SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+                                                KeySpec spec2 = new PBEKeySpec(pass.toCharArray(), salt2, 10000, 128);
+                                                SecretKey tmp2 = factory2.generateSecret(spec2);
+                                                SecretKeySpec skey2 = new SecretKeySpec(tmp2.getEncoded(), "AES");
+
+                                                Cipher ci2 = Cipher.getInstance("AES/CBC/PKCS5Padding");
+                                                ci2.init(Cipher.DECRYPT_MODE, skey2, new IvParameterSpec(iv2));
+
+                                                try (FileOutputStream out2 = new FileOutputStream(new File(currentProgramPath + File.separator + address + "_json"))) {
+                                                    processFile(ci2, in, out2);
+                                                }
+
+                                                if (new File(encryptedPath).exists()) {
+                                                    new File(encryptedPath).delete();
+                                                }
+
+                                                System.out.println("Wallet exported");
+                                            } else {
+
+                                                i++;
+                                                k = 0;
+                                                while (k < lengthsSt[h]) {
+                                                    k++;
+                                                }
+
+
+                                                i = i + k;
+                                            }
+
+
+                                        } else if (buffer[i] == '<') {
+                                            while (buffer[i] != '0') {
+                                                i++;
+                                            }
+
+                                            String address = "";
+                                            while (buffer[i] != '\t') {
+                                                address += (char) (buffer[i] & 0xFF);
+                                                i++;
+                                            }
+
+
+                                            i++;
+
+
+                                        }
+
+
+                                    }
+
+                                }
+
+
+                            }
+
+
+                        }
+
+
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+
+
+                } else
+                    break;
+
+
+            }
         }
+
+        if (new File(currentProgramPath + File.separator + "backup.noku_dec").exists())
+            new File(currentProgramPath + File.separator + "backup.noku_dec").delete();
 
 
     }
