@@ -1,4 +1,4 @@
-This is a tool you can use to decrypt Noku Backup Files generated from Noku Ethereum Wallet (Android version). By now it only tells you how many wallets, with private key or not, you have and how many Stealth Spaces and wallets you included in the backup. Soon export to JSON feature will be added.
+This is a tool you can use to decrypt Noku Backup Files generated from Noku Ethereum Wallet (Android version). It tells you how many wallets, with private key or not, you have and how many Stealth Spaces and wallets you included in the backup. You also can export the private key wallets to UTC/JSON Ethereum format.
 
 NOTE: TO USE THIS TOOL YOU NEED TO HAVE JDK INSTALLED IN YOUR COMPUTER (It's a cross platform tool)
 
