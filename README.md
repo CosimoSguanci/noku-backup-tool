@@ -4,7 +4,7 @@ NOTE: TO USE THIS TOOL YOU NEED TO HAVE JDK INSTALLED IN YOUR COMPUTER (It's a c
 
 INSTRUCTIONS:
 
-1) Put your backuo file in the same directory as the jar file;
+1) Put your backup file in the same directory as the jar file;
 2) From terminal (or command prompt in Windows) type:
 
 java -jar noku_backup_tools.jar
